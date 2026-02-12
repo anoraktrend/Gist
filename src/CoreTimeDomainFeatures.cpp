@@ -22,6 +22,7 @@
 //=======================================================================
 
 #include "CoreTimeDomainFeatures.h"
+#include <cmath>
 
 //===========================================================
 template <class T>
@@ -33,41 +34,29 @@ CoreTimeDomainFeatures<T>::CoreTimeDomainFeatures()
 template <class T>
 T CoreTimeDomainFeatures<T>::rootMeanSquare (const std::vector<T>& buffer)
 {
-    // create variable to hold the sum
     T sum = 0;
-
-    // sum the squared samples
-    for (size_t i = 0; i < buffer.size(); i++)
+    const size_t n = buffer.size();
+    // Use x * x instead of pow(x, 2) for better performance
+    for (size_t i = 0; i < n; i++)
     {
-        sum += pow (buffer[i], 2);
+        T sample = buffer[i];
+        sum += sample * sample;
     }
-
-    // return the square root of the mean of squared samples
-    return sqrt (sum / ((T)buffer.size()));
+    return std::sqrt (sum / static_cast<T>(n));
 }
 
 //===========================================================
 template <class T>
 T CoreTimeDomainFeatures<T>::peakEnergy (const std::vector<T>& buffer)
 {
-    // create variable with very small value to hold the peak value
     T peak = -10000.0;
-
-    // for each audio sample
-    for (size_t i = 0; i < buffer.size(); i++)
+    const size_t n = buffer.size();
+    for (size_t i = 0; i < n; i++)
     {
-        // store the absolute value of the sample
-        T absSample = fabs (buffer[i]);
-
-        // if the absolute value is larger than the peak
+        T absSample = std::fabs(buffer[i]);
         if (absSample > peak)
-        {
-            // the peak takes on the sample value
             peak = absSample;
-        }
     }
-
-    // return the peak value
     return peak;
 }
 
@@ -75,26 +64,17 @@ T CoreTimeDomainFeatures<T>::peakEnergy (const std::vector<T>& buffer)
 template <class T>
 T CoreTimeDomainFeatures<T>::zeroCrossingRate (const std::vector<T>& buffer)
 {
-    // create a variable to hold the zero crossing rate
     T zcr = 0;
-
-    // for each audio sample, starting from the second one
-    for (size_t i = 1; i < buffer.size(); i++)
+    const size_t n = buffer.size();
+    // Optimized: check sign change more efficiently
+    for (size_t i = 1; i < n; i++)
     {
-        // initialise two booleans indicating whether or not
-        // the current and previous sample are positive
-        bool current = (buffer[i] > 0);
-        bool previous = (buffer[i - 1] > 0);
-
-        // if the sign is different
-        if (current != previous)
+        // Check if signs differ (one positive, one negative or zero)
+        if ((buffer[i] > 0) != (buffer[i - 1] > 0))
         {
-            // add one to the zero crossing rate
-            zcr = zcr + 1.0;
+            zcr += 1.0;
         }
     }
-
-    // return the zero crossing rate
     return zcr;
 }
 

@@ -22,6 +22,8 @@
 //=======================================================================
 
 #include "CoreFrequencyDomainFeatures.h"
+#include <cmath>
+#include <algorithm>
 
 //===========================================================
 template <class T>
@@ -98,31 +100,23 @@ T CoreFrequencyDomainFeatures<T>::spectralCrest (const std::vector<T>& magnitude
 {
     T sumVal = 0.0;
     T maxVal = 0.0;
-    T N = (T)magnitudeSpectrum.size();
+    const size_t N = magnitudeSpectrum.size();
 
-    for (size_t i = 0; i < magnitudeSpectrum.size(); i++)
+    for (size_t i = 0; i < N; i++)
     {
-        T v = magnitudeSpectrum[i] * magnitudeSpectrum[i];
-        sumVal += v;
-
-        if (v > maxVal)
-            maxVal = v;
+        T v = magnitudeSpectrum[i];
+        T squared = v * v;
+        sumVal += squared;
+        if (squared > maxVal)
+            maxVal = squared;
     }
-
-    T spectralCrest;
 
     if (sumVal > 0)
     {
-        T meanVal = sumVal / N;
-        spectralCrest = maxVal / meanVal;
+        return maxVal / (sumVal / static_cast<T>(N));
     }
-    else
-    {
-        // this is a ratio so we return 1.0 if the buffer is just zeros
-        spectralCrest = 1.0;
-    }
-
-    return spectralCrest;
+    // this is a ratio so we return 1.0 if the buffer is just zeros
+    return static_cast<T>(1.0);
 }
 
 //===========================================================

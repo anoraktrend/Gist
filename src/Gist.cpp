@@ -23,6 +23,8 @@
 
 #include "Gist.h"
 #include <assert.h>
+#include <cstring>
+#include <algorithm>
 
 //=======================================================================
 template <class T>
@@ -98,7 +100,8 @@ void Gist<T>::processAudioFrame (const std::vector<T>& a)
     // audio frame size setup in Gist
     assert (a.size() == audioFrame.size());
     
-    std::copy (a.begin(), a.end(), audioFrame.begin());
+    // Use memcpy for better performance with trivially copyable types
+    std::memcpy(audioFrame.data(), a.data(), audioFrame.size() * sizeof(T));
     performFFT();
 }
 
@@ -110,8 +113,8 @@ void Gist<T>::processAudioFrame (const T* frame, int numSamples)
     // audio frame size setup in Gist
     assert (static_cast<size_t> (numSamples) == audioFrame.size());
     
-    for (size_t i = 0; i < audioFrame.size(); i++)
-        audioFrame[i] = frame[i];
+    // Use memcpy for better performance
+    std::memcpy(audioFrame.data(), frame, numSamples * sizeof(T));
     
     performFFT();
 }
@@ -252,8 +255,8 @@ void Gist<T>::configureFFT()
     fftIn = (fftw_complex*)fftw_malloc (sizeof (fftw_complex) * frameSize);  // complex array to hold fft data
     fftOut = (fftw_complex*)fftw_malloc (sizeof (fftw_complex) * frameSize); // complex array to hold fft data
     
-    // FFT plan initialisation
-    p = fftw_plan_dft_1d (frameSize, fftIn, fftOut, FFTW_FORWARD, FFTW_ESTIMATE);
+    // FFT plan initialisation with FFTW_MEASURE for better performance (slower planning, faster execution)
+    p = fftw_plan_dft_1d (frameSize, fftIn, fftOut, FFTW_FORWARD, FFTW_MEASURE);
 #endif /* END USE_FFTW */
     
 #ifdef USE_KISS_FFT
@@ -354,10 +357,11 @@ void Gist<T>::performFFT()
     
 #endif
     
-    // calculate the magnitude spectrum
-    for (int i = 0; i < frameSize / 2; i++)
+    // calculate the magnitude spectrum using hypot for better performance and numerical stability
+    const int spectrumSize = frameSize / 2;
+    for (int i = 0; i < spectrumSize; i++)
     {
-        magnitudeSpectrum[i] = sqrt ((fftReal[i] * fftReal[i]) + (fftImag[i] * fftImag[i]));
+        magnitudeSpectrum[i] = std::hypot(fftReal[i], fftImag[i]);
     }
 }
 
