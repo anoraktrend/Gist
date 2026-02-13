@@ -1,3 +1,5 @@
+cmake_policy(SET CMP0100 NEW)
+
 add_library(KissFFT STATIC
     kiss_fft.h
     kiss_fft.c
