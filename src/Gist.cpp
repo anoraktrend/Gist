@@ -303,8 +303,8 @@ void Gist<T>::performFFT()
     // copy samples from audio frame
     for (int i = 0; i < frameSize; i++)
     {
-        fftIn[i][0] = (double)(audioFrame[i] * windowFunction[i]);
-        fftIn[i][1] = (double)0.0;
+        fftIn[i][0] = static_cast<double> (audioFrame[i] * windowFunction[i]);
+        fftIn[i][1] = 0.0;
     }
     
     // perform the FFT
@@ -337,24 +337,15 @@ void Gist<T>::performFFT()
 #endif
     
 #ifdef USE_ACCELERATE_FFT
-    
-    T inputFrame[frameSize];
-    T outputReal[frameSize];
-    T outputImag[frameSize];
-    
+
+    // Apply window function into a temporary buffer (avoids non-standard VLAs)
+    std::vector<T> inputFrame (frameSize);
     for (int i = 0; i < frameSize; i++)
-    {
         inputFrame[i] = audioFrame[i] * windowFunction[i];
-    }
-    
-    accelerateFFT.performFFT (inputFrame, outputReal, outputImag);
-    
-    for (int i = 0; i < frameSize; i++)
-    {
-        fftReal[i] = outputReal[i];
-        fftImag[i] = outputImag[i];
-    }
-    
+
+    // Write output directly into pre-allocated member vectors, no copy needed
+    accelerateFFT.performFFT (inputFrame.data(), fftReal.data(), fftImag.data());
+
 #endif
     
     // calculate the magnitude spectrum using hypot for better performance and numerical stability

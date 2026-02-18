@@ -35,22 +35,12 @@ OnsetDetectionFunction<T>::OnsetDetectionFunction (int frameSize)
 template <class T>
 void OnsetDetectionFunction<T>::setFrameSize (int frameSize)
 {
-    // resize the prev magnitude spectrum vector
-    prevMagnitudeSpectrum_spectralDifference.resize (frameSize);
-    prevMagnitudeSpectrum_spectralDifferenceHWR.resize (frameSize);
-    prevPhaseSpectrum_complexSpectralDifference.resize (frameSize);
-    prevPhaseSpectrum2_complexSpectralDifference.resize (frameSize);
-    prevMagnitudeSpectrum_complexSpectralDifference.resize (frameSize);
-
-    // fill it with zeros
-    for (size_t i = 0; i < prevMagnitudeSpectrum_spectralDifference.size(); i++)
-    {
-        prevMagnitudeSpectrum_spectralDifference[i] = 0.0;
-        prevMagnitudeSpectrum_spectralDifferenceHWR[i] = 0.0;
-        prevPhaseSpectrum_complexSpectralDifference[i] = 0.0;
-        prevPhaseSpectrum2_complexSpectralDifference[i] = 0.0;
-        prevMagnitudeSpectrum_complexSpectralDifference[i] = 0.0;
-    }
+    // resize and zero-fill all prev spectrum buffers
+    prevMagnitudeSpectrum_spectralDifference.assign (frameSize, 0.0);
+    prevMagnitudeSpectrum_spectralDifferenceHWR.assign (frameSize, 0.0);
+    prevPhaseSpectrum_complexSpectralDifference.assign (frameSize, 0.0);
+    prevPhaseSpectrum2_complexSpectralDifference.assign (frameSize, 0.0);
+    prevMagnitudeSpectrum_complexSpectralDifference.assign (frameSize, 0.0);
 
     prevEnergySum = 0;
 }
@@ -94,9 +84,7 @@ T OnsetDetectionFunction<T>::spectralDifference (const std::vector<T>& magnitude
 
         // ensure all difference values are positive
         if (diff < 0)
-        {
-            diff = diff * -1;
-        }
+            diff = -diff;
 
         // add difference to sum
         sum = sum + diff;
@@ -137,41 +125,34 @@ T OnsetDetectionFunction<T>::spectralDifferenceHWR (const std::vector<T>& magnit
 template <class T>
 T OnsetDetectionFunction<T>::complexSpectralDifference (const std::vector<T>& fftReal, const std::vector<T>& fftImag)
 {
-    T dev, pdev;
-    T sum;
-    T magDiff, phaseDiff;
-    T value;
-    T phaseVal;
-    T magVal;
-
-    sum = 0; // initialise sum to zero
+    T sum = 0; // initialise sum to zero
 
     // compute phase values from fft output and sum deviations
     for (size_t i = 0; i < fftReal.size(); i++)
     {
+        const T r = fftReal[i];
+        const T im = fftImag[i];
+
         // calculate phase value
-        phaseVal = atan2 (fftImag[i], fftReal[i]);
+        const T phaseVal = std::atan2 (im, r);
 
         // calculate magnitude value
-        magVal = sqrt ((fftReal[i] * fftReal[i]) + (fftImag[i] * fftImag[i]));
+        const T magVal = std::hypot (r, im);
 
         // phase deviation
-        dev = phaseVal - (2 * prevPhaseSpectrum_complexSpectralDifference[i]) + prevPhaseSpectrum2_complexSpectralDifference[i];
+        const T dev = phaseVal - (2 * prevPhaseSpectrum_complexSpectralDifference[i]) + prevPhaseSpectrum2_complexSpectralDifference[i];
 
         // wrap into [-pi,pi] range
-        pdev = princarg (dev);
+        const T pdev = princarg (dev);
 
         // calculate magnitude difference (real part of Euclidean distance between complex frames)
-        magDiff = magVal - prevMagnitudeSpectrum_complexSpectralDifference[i];
+        const T magDiff = magVal - prevMagnitudeSpectrum_complexSpectralDifference[i];
 
         // calculate phase difference (imaginary part of Euclidean distance between complex frames)
-        phaseDiff = -magVal * sin (pdev);
+        const T phaseDiff = -magVal * std::sin (pdev);
 
         // square real and imaginary parts, sum and take square root
-        value = sqrt ((magDiff * magDiff) + (phaseDiff * phaseDiff));
-
-        // add to sum
-        sum = sum + value;
+        sum += std::hypot (magDiff, phaseDiff);
 
         // store values for next calculation
         prevPhaseSpectrum2_complexSpectralDifference[i] = prevPhaseSpectrum_complexSpectralDifference[i];
@@ -198,15 +179,12 @@ T OnsetDetectionFunction<T>::highFrequencyContent (const std::vector<T>& magnitu
 template <class T>
 T OnsetDetectionFunction<T>::princarg (T phaseVal)
 {
-    // if phase value is less than or equal to -pi then add 2*pi
-    while (phaseVal <= (-M_PI))
-        phaseVal = phaseVal + (2 * M_PI);
-
-    // if phase value is larger than pi, then subtract 2*pi
-    while (phaseVal > M_PI)
-        phaseVal = phaseVal - (2 * M_PI);
-
-    return phaseVal;
+    // Map phaseVal into (-pi, pi] using a single fmod operation
+    static const T twoPi = static_cast<T> (2.0 * M_PI);
+    phaseVal = std::fmod (phaseVal + static_cast<T> (M_PI), twoPi);
+    if (phaseVal <= 0)
+        phaseVal += twoPi;
+    return phaseVal - static_cast<T> (M_PI);
 }
 
 //===========================================================

@@ -70,28 +70,23 @@ T CoreFrequencyDomainFeatures<T>::spectralFlatness (const std::vector<T>& magnit
 {
     double sumVal = 0.0;
     double logSumVal = 0.0;
-    double N = (double)magnitudeSpectrum.size();
-
-    T flatness;
+    const double N = static_cast<double> (magnitudeSpectrum.size());
 
     for (size_t i = 0; i < magnitudeSpectrum.size(); i++)
     {
         // add one to stop zero values making it always zero
-        double v = (double)(1 + magnitudeSpectrum[i]);
-
+        const double v = 1.0 + static_cast<double> (magnitudeSpectrum[i]);
         sumVal += v;
-        logSumVal += log (v);
+        logSumVal += std::log (v);
     }
 
-    sumVal = sumVal / N;
-    logSumVal = logSumVal / N;
+    sumVal /= N;
+    logSumVal /= N;
 
     if (sumVal > 0)
-        flatness = (T)(exp (logSumVal) / sumVal);
+        return static_cast<T> (std::exp (logSumVal) / sumVal);
     else
-        flatness = 0.0;
-
-    return flatness;
+        return static_cast<T> (0.0);
 }
 
 //===========================================================
@@ -123,7 +118,7 @@ T CoreFrequencyDomainFeatures<T>::spectralCrest (const std::vector<T>& magnitude
 template <class T>
 T CoreFrequencyDomainFeatures<T>::spectralRolloff (const std::vector<T>& magnitudeSpectrum, T percentile)
 {
-    T sumOfMagnitudeSpectrum = std::accumulate (magnitudeSpectrum.begin(), magnitudeSpectrum.end(), 0);
+    T sumOfMagnitudeSpectrum = std::accumulate (magnitudeSpectrum.begin(), magnitudeSpectrum.end(), T (0));
     T threshold = sumOfMagnitudeSpectrum * percentile;
     
     T cumulativeSum = 0;
@@ -151,9 +146,9 @@ T CoreFrequencyDomainFeatures<T>::spectralKurtosis (const std::vector<T>& magnit
 {
     // https://en.wikipedia.org/wiki/Kurtosis#Sample_kurtosis
     
-    T sumOfMagnitudeSpectrum = std::accumulate (magnitudeSpectrum.begin(), magnitudeSpectrum.end(), 0);
-    
-    T mean = sumOfMagnitudeSpectrum / (T)magnitudeSpectrum.size();
+    T sumOfMagnitudeSpectrum = std::accumulate (magnitudeSpectrum.begin(), magnitudeSpectrum.end(), T (0));
+
+    const T mean = sumOfMagnitudeSpectrum / static_cast<T> (magnitudeSpectrum.size());
     
     T moment2 = 0;
     T moment4 = 0;

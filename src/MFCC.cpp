@@ -22,6 +22,7 @@
 //=======================================================================
 
 #include "MFCC.h"
+#include <algorithm>
 #include <cfloat>
 #include <assert.h>
 
@@ -76,14 +77,21 @@ void MFCC<T>::calculateMelFrequencyCepstralCoefficients (const std::vector<T>& m
 template <class T>
 void MFCC<T>::calculateMelFrequencySpectrum (const std::vector<T>& magnitudeSpectrum)
 {
+    // Pre-compute squared magnitudes once, reused across all filter bands
+    const size_t specSize = magnitudeSpectrum.size();
+    std::vector<T> magSquared (specSize);
+    for (size_t j = 0; j < specSize; j++)
+        magSquared[j] = magnitudeSpectrum[j] * magnitudeSpectrum[j];
+
     for (int i = 0; i < numCoefficents; i++)
     {
         double coeff = 0;
-        
-        for (size_t j = 0; j < magnitudeSpectrum.size(); j++)
-            coeff += (T)((magnitudeSpectrum[j] * magnitudeSpectrum[j]) * filterBank[i][j]);
-        
-        melSpectrum[i] = coeff;
+        const std::vector<T>& filter = filterBank[i];
+
+        for (size_t j = 0; j < specSize; j++)
+            coeff += static_cast<double> (magSquared[j] * filter[j]);
+
+        melSpectrum[i] = static_cast<T> (coeff);
     }
 }
 
@@ -112,8 +120,7 @@ void MFCC<T>::discreteCosineTransform (std::vector<T>& inputSignal, const std::s
     // this should already be the case - sanity check
     assert (dctSignal.size() == numElements);
         
-    for (size_t i = 0; i < numElements; i++)
-        dctSignal[i] = inputSignal[i];
+    std::copy (inputSignal.begin(), inputSignal.end(), dctSignal.begin());
     
     T N = (T)numElements;
     T piOverN = M_PI / N;
@@ -140,15 +147,8 @@ void MFCC<T>::calculateMelFilterBank()
     int maxMel = floor (frequencyToMel (maxFrequency));
     int minMel = floor (frequencyToMel (minFrequency));
 
-    filterBank.resize (numCoefficents);
-
-    for (int i = 0; i < numCoefficents; i++)
-    {
-        filterBank[i].resize (magnitudeSpectrumSize);
-
-        for (int j = 0; j < magnitudeSpectrumSize; j++)
-            filterBank[i][j] = 0.0;
-    }
+    // Resize and zero-initialise the filter bank in one step
+    filterBank.assign (numCoefficents, std::vector<T> (magnitudeSpectrumSize, T (0)));
 
     std::vector<int> centreIndices;
 
