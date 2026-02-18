@@ -4,9 +4,6 @@
 # Add Kiss FFT subdirectory (always available as fallback)
 add_subdirectory(../libs/kiss_fft130 ${CMAKE_CURRENT_BINARY_DIR}/kiss_fft130)
 
-include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../libs/kiss_fft130)
-include_directories(${CMAKE_CURRENT_SOURCE_DIR})
-
 # Determine which FFT backend to use based on GIST_USE_FFT variable from parent
 # Priority: ACCELERATE > FFTW > KISS (default)
 if(GIST_USE_FFT STREQUAL "ACCELERATE")
@@ -37,6 +34,11 @@ add_library (
     WindowFunctions.h
     Yin.cpp
     Yin.h
+)
+
+target_include_directories(Gist PUBLIC
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_CURRENT_SOURCE_DIR}/../libs/kiss_fft130
 )
 
 source_group(Source src)
